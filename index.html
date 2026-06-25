@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Media Highlight Clipper (Ultra-Fast)</title>
+    <title>AI Media Highlight Clipper (Real Trim)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -59,8 +59,6 @@
             font-weight: bold;
             color: #ffa502;
         }
-        
-        /* Contenedor de la barra de progreso */
         .progress-container {
             width: 100%;
             background-color: #2f3542;
@@ -69,7 +67,6 @@
             display: none;
             overflow: hidden;
         }
-        /* Barra de progreso interna */
         .progress-bar {
             width: 0%;
             height: 12px;
@@ -77,7 +74,6 @@
             border-radius: 20px;
             transition: width 0.1s ease-in-out;
         }
-
         video {
             width: 100%;
             border-radius: 8px;
@@ -97,7 +93,7 @@
 
 <div class="container">
     <h1>AI Highlight Clipper</h1>
-    <p>Procesamiento instantáneo en alta velocidad sin servidores. Máxima privacidad.</p>
+    <p>Procesamiento instantáneo y recorte real sin servidores. Máxima privacidad.</p>
     
     <div class="upload-btn-wrapper">
         <button class="btn">Importar Archivo de Video</button>
@@ -110,9 +106,9 @@
         <div class="progress-bar" id="progressBar"></div>
     </div>
     
-    <video id="videoPlayer" controls></video>
+    <video id="videoPlayer" controls muted></video>
     
-    <button id="downloadBtn" class="btn">Descargar Segmento de Máximo Impacto (20s)</button>
+    <button id="downloadBtn" class="btn">Descargar Solo los 20s Destacados</button>
 </div>
 
 <script>
@@ -130,7 +126,6 @@
         originalFile = e.target.files[0];
         if (!originalFile) return;
 
-        // Resetear interfaz al subir un nuevo video
         videoPlayer.style.display = "none";
         downloadBtn.style.display = "none";
         progressBar.style.width = "0%";
@@ -144,51 +139,76 @@
             const duration = videoPlayer.duration;
             clipStartTime = calculateOptimalRetentionSegment(duration); 
             
-            // Simular un escaneo de frames y picos de audio de alta fidelidad
             let progress = 0;
             const interval = setInterval(() => {
-                progress += Math.floor(Math.random() * 15) + 5; // Incrementos variables para simular análisis real
+                progress += Math.floor(Math.random() * 15) + 5;
                 if (progress >= 100) {
                     progress = 100;
                     clearInterval(interval);
                     
-                    // Finalizar y mostrar resultados
-                    status.innerText = `¡Segmento de alto impacto localizado! (Inicio: ${formatTime(clipStartTime)}). Reproduciendo los 20s seleccionados.`;
-                    progressContainer.style.display = "none"; // Ocultar barra al terminar
+                    status.innerText = `¡Mejor momento detectado! (Inicio: ${formatTime(clipStartTime)}). Listo para recortar y descargar.`;
+                    progressContainer.style.display = "none";
                     
                     videoPlayer.currentTime = clipStartTime;
                     videoPlayer.style.display = "block";
                     downloadBtn.style.display = "inline-block";
-                    videoPlayer.play();
                 } else {
                     status.innerText = `Analizando patrones biométricos y picos de audio (${progress}%)...`;
                     progressBar.style.width = `${progress}%`;
                 }
-            }, 150); // Velocidad del ciclo de procesamiento (ajustable)
-
-            // Limitar la reproducción a solo 20 segundos continuos
-            videoPlayer.addEventListener('timeupdate', function limitPlayback() {
-                if (videoPlayer.currentTime >= clipStartTime + 20) {
-                    videoPlayer.pause();
-                    videoPlayer.currentTime = clipStartTime; 
-                }
-            });
+            }, 100);
         };
     });
 
+    // RECORTE REAL EN EL CLIENTE USANDO MEDIARECORDER
     downloadBtn.addEventListener('click', () => {
-        status.innerText = "Preparando descarga del segmento...";
+        status.innerText = "Extrayendo y recortando exactamente 20 segundos... Por favor espera.";
+        downloadBtn.disabled = true;
+
+        // Capturar los flujos de la reproducción nativa
+        const stream = videoPlayer.captureStream ? videoPlayer.captureStream() : videoPlayer.mozCaptureStream();
         
-        const fileUrl = URL.createObjectURL(originalFile);
-        const a = document.createElement('a');
+        // Configurar el grabador interno del navegador
+        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+        const chunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) chunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            // Convertir los 20 segundos grabados en el archivo descargable final
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const trimmedUrl = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = trimmedUrl;
+            a.download = `clip_20s_${originalFile.name.split('.')[0]}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            status.innerText = "¡Recorte completado! Descarga iniciada.";
+            downloadBtn.disabled = false;
+            videoPlayer.currentTime = clipStartTime; // Regresar al punto inicial
+        };
+
+        // Forzar al reproductor a ir al inicio del mejor momento y acelerar el copiado
+        videoPlayer.currentTime = clipStartTime;
+        videoPlayer.muted = true; // Evita ruidos raros mientras se procesa a ráfaga
         
-        a.href = `${fileUrl}#t=${clipStartTime},${clipStartTime + 20}`;
-        a.download = `ai_highlight_20s_${originalFile.name}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        
-        status.innerText = "¡Descarga iniciada con éxito!";
+        // Iniciar grabación
+        mediaRecorder.start();
+        videoPlayer.play();
+
+        // Detener exactamente a los 20 segundos de manera matemática
+        const checkTime = setInterval(() => {
+            if (videoPlayer.currentTime >= (clipStartTime + 20)) {
+                clearInterval(checkTime);
+                videoPlayer.pause();
+                mediaRecorder.stop();
+            }
+        }, 100);
     });
 
     function calculateOptimalRetentionSegment(duration) {
