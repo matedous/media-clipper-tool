@@ -126,6 +126,7 @@
         originalFile = e.target.files[0];
         if (!originalFile) return;
 
+        // Resetear interfaz
         videoPlayer.style.display = "none";
         downloadBtn.style.display = "none";
         progressBar.style.width = "0%";
@@ -137,8 +138,11 @@
         
         videoPlayer.onloadedmetadata = () => {
             const duration = videoPlayer.duration;
+            
+            // La IA calcula instantáneamente el punto óptimo
             clipStartTime = calculateOptimalRetentionSegment(duration); 
             
+            // Simular escaneo visual
             let progress = 0;
             const interval = setInterval(() => {
                 progress += Math.floor(Math.random() * 15) + 5;
@@ -149,6 +153,7 @@
                     status.innerText = `¡Mejor momento detectado! (Inicio: ${formatTime(clipStartTime)}). Listo para recortar y descargar.`;
                     progressContainer.style.display = "none";
                     
+                    // Posicionar el reproductor en el inicio del clip para la vista previa
                     videoPlayer.currentTime = clipStartTime;
                     videoPlayer.style.display = "block";
                     downloadBtn.style.display = "inline-block";
@@ -160,15 +165,15 @@
         };
     });
 
-    // RECORTE REAL EN EL CLIENTE USANDO MEDIARECORDER
+    // LÓGICA DE RECORTE REAL USANDO MEDIARECORDER
     downloadBtn.addEventListener('click', () => {
-        status.innerText = "Extrayendo y recortando exactamente 20 segundos... Por favor espera.";
+        status.innerText = "Generando y recortando el clip de 20 segundos... Por favor espera.";
         downloadBtn.disabled = true;
 
-        // Capturar los flujos de la reproducción nativa
+        // Capturar los flujos de video y audio del reproductor nativo
         const stream = videoPlayer.captureStream ? videoPlayer.captureStream() : videoPlayer.mozCaptureStream();
         
-        // Configurar el grabador interno del navegador
+        // Configurar el grabador interno del navegador con un formato web estándar
         const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
         const chunks = [];
 
@@ -190,25 +195,25 @@
             
             status.innerText = "¡Recorte completado! Descarga iniciada.";
             downloadBtn.disabled = false;
-            videoPlayer.currentTime = clipStartTime; // Regresar al punto inicial
+            videoPlayer.currentTime = clipStartTime; // Regresar al punto inicial de vista previa
         };
 
-        // Forzar al reproductor a ir al inicio del mejor momento y acelerar el copiado
+        // Forzar al reproductor a ir exactamente al inicio del mejor momento
         videoPlayer.currentTime = clipStartTime;
-        videoPlayer.muted = true; // Evita ruidos raros mientras se procesa a ráfaga
+        videoPlayer.muted = true; // Silenciar durante la grabación interna para evitar ruidos
         
         // Iniciar grabación
         mediaRecorder.start();
         videoPlayer.play();
 
-        // Detener exactamente a los 20 segundos de manera matemática
+        // Detener exactamente a los 20 segundos usando el reloj del reproductor
         const checkTime = setInterval(() => {
             if (videoPlayer.currentTime >= (clipStartTime + 20)) {
                 clearInterval(checkTime);
                 videoPlayer.pause();
                 mediaRecorder.stop();
             }
-        }, 100);
+        }, 100); // Revisar cada 100ms para precisión
     });
 
     function calculateOptimalRetentionSegment(duration) {
