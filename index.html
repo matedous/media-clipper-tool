@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Media Highlight Clipper (Sensory Engine)</title>
+    <title>AI Media Highlight Clipper (Cognitive Focus Engine)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -70,7 +70,7 @@
         .progress-bar {
             width: 0%;
             height: 12px;
-            background: linear-gradient(90deg, #2ed573, #26af5f);
+            background: linear-gradient(90deg, #e056fd, #be2edd);
             border-radius: 20px;
             transition: width 0.2s linear;
         }
@@ -95,7 +95,7 @@
 
 <div class="container">
     <h1>AI Highlight Clipper</h1>
-    <p>Motor Neuro-Sensorial activado. Renderizado estricto de 20 segundos.</p>
+    <p>Motor Cognitivo enfocado en intensidad visual y biométrica.</p>
     
     <div class="upload-btn-wrapper">
         <button class="btn" id="uploadBtnLabel">Importar Archivo de Video</button>
@@ -133,7 +133,7 @@
         progressContainer.style.display = "block";
         progressBar.style.width = "0%";
         
-        status.innerText = "Iniciando escaneo neuro-sensorial del video...";
+        status.innerText = "Iniciando escaneo biométrico y rítmico del video...";
         
         const videoUrl = URL.createObjectURL(originalFile);
         videoPlayer.src = videoUrl;
@@ -141,13 +141,13 @@
         videoPlayer.onloadedmetadata = async () => {
             const duration = videoPlayer.duration;
             
-            // LLAMADA AL NUEVO MOTOR DE ANÁLISIS REAL
-            clipStartTime = await analyzeSensoryClimax(originalFile, duration, (percent) => {
+            // Llamada al motor de análisis cognitivo
+            clipStartTime = await analyzeCognitiveClimax(originalFile, duration, (percent) => {
                 progressBar.style.width = `${percent}%`;
-                status.innerText = `Analizando movimiento, intensidad visual y psicología del acto (${percent}%)...`;
+                status.innerText = `Evaluando densidad visual, fricción e impacto psicológico (${percent}%)...`;
             });
             
-            status.innerText = `¡Clímax Neuro-Sensorial detectado! (Inicio: ${formatTime(clipStartTime)}). Revisa y haz clic en Recortar.`;
+            status.innerText = `¡Clímax Cognitivo detectado! (Inicio: ${formatTime(clipStartTime)}). Revisa y haz clic en Recortar.`;
             
             progressContainer.style.display = "none";
             videoPlayer.currentTime = clipStartTime;
@@ -156,7 +156,6 @@
         };
     });
 
-    // SISTEMA DE RECORTE INTACTO (El que ya funciona perfecto)
     downloadBtn.addEventListener('click', () => {
         downloadBtn.disabled = true;
         videoInput.disabled = true;
@@ -190,7 +189,7 @@
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = finalUrl;
-            a.download = `Alta_Atraccion_20s_${originalFile.name.split('.')[0]}.webm`;
+            a.download = `Max_Impact_20s_${originalFile.name.split('.')[0]}.webm`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -213,7 +212,7 @@
             timeElapsed += 1;
             const percentage = (timeElapsed / totalDuration) * 100;
             progressBar.style.width = `${percentage}%`;
-            status.innerText = `Extrayendo estímulos y renderizando clip: ${timeElapsed}s / 20s...`;
+            status.innerText = `Renderizando segmento de máxima atención: ${timeElapsed}s / 20s...`;
 
             if (timeElapsed >= totalDuration) {
                 clearInterval(timerInterval);
@@ -223,11 +222,11 @@
     });
 
     /**
-     * MOTOR NEURO-SENSORIAL DE ANÁLISIS
-     * Escanea físicamente los fotogramas del video para detectar la mayor intensidad
-     * de movimiento y aplica la curva de retención psicológica humana.
+     * MOTOR DE ANÁLISIS COGNITIVO
+     * Escanea densidad de tonos corporales y movimiento rítmico para aproximarse
+     * a los picos de excitación visual.
      */
-    async function analyzeSensoryClimax(file, duration, updateProgress) {
+    async function analyzeCognitiveClimax(file, duration, updateProgress) {
         return new Promise((resolve) => {
             if (duration <= 20) resolve(0);
 
@@ -239,63 +238,66 @@
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             
-            const scanInterval = 2; // Analiza un fotograma cada 2 segundos
+            const scanInterval = 1.5; // Escaneo más rápido para detectar ritmo
             const scores = [];
             let lastImageData = null;
 
             tempVid.addEventListener('loadeddata', () => {
-                // Resolución ultra-baja para que el escaneo sea rápido pero detecte movimiento
                 canvas.width = 64; 
                 canvas.height = 64;
                 tempVid.currentTime = 0;
             });
 
             tempVid.addEventListener('seeked', () => {
-                // Dibujar el fotograma actual en el lienzo virtual
                 ctx.drawImage(tempVid, 0, 0, canvas.width, canvas.height);
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
                 
                 let motionIntensity = 0;
-                let brightnessLevel = 0;
+                let skinMotionMultiplier = 0;
 
-                // Analizar los píxeles
                 for (let i = 0; i < imageData.length; i += 4) {
                     const r = imageData[i];
                     const g = imageData[i+1];
                     const b = imageData[i+2];
                     
-                    brightnessLevel += (r + g + b) / 3;
+                    // Algoritmo heurístico para detectar espectro cromático de piel humana
+                    const isSkinTone = (r > 95 && g > 40 && b > 20 && 
+                                      Math.max(r,g,b) - Math.min(r,g,b) > 15 && 
+                                      Math.abs(r-g) > 15 && r > g && r > b);
 
-                    // Si hay un fotograma anterior, calcular la fricción/movimiento (diferencia de píxeles)
                     if (lastImageData) {
-                        motionIntensity += Math.abs(r - lastImageData[i]) + 
-                                           Math.abs(g - lastImageData[i+1]) + 
-                                           Math.abs(b - lastImageData[i+2]);
+                        const diff = Math.abs(r - lastImageData[i]) + 
+                                     Math.abs(g - lastImageData[i+1]) + 
+                                     Math.abs(b - lastImageData[i+2]);
+                        
+                        // Solo contar movimientos bruscos/rítmicos
+                        if (diff > 40) {
+                            motionIntensity += 1;
+                            // Si el movimiento ocurre en un área con tono de piel, el peso cognitivo se multiplica
+                            if (isSkinTone) {
+                                skinMotionMultiplier += 3; 
+                            }
+                        }
                     }
                 }
                 
                 lastImageData = imageData;
                 
-                // Guardar la puntuación sensorial de este instante
+                // La puntuación combina el movimiento general con el movimiento enfocado en tonos de piel
                 scores.push({
                     time: tempVid.currentTime,
-                    score: motionIntensity + (brightnessLevel * 0.2) // Prioriza el movimiento físico
+                    score: motionIntensity + skinMotionMultiplier
                 });
 
-                // Actualizar barra de progreso al usuario
                 const percentDone = Math.min(99, Math.round((tempVid.currentTime / duration) * 100));
                 updateProgress(percentDone);
 
-                // Avanzar en el video
                 if (tempVid.currentTime < duration - 20) { 
                     tempVid.currentTime += scanInterval;
                 } else {
-                    // ESCANEO TERMINADO - CALCULAR EL CLÍMAX PSICOLÓGICO
-                    let maxDopamineScore = 0;
+                    let maxArousalScore = 0;
                     let bestStartTime = 0;
-
-                    // Una ventana de 20s equivale a 10 muestras continuas
-                    const samplesInWindow = 10; 
+                    const samplesInWindow = Math.floor(20 / scanInterval); 
                     
                     for (let i = 0; i <= scores.length - samplesInWindow; i++) {
                         let windowIntensity = 0;
@@ -303,30 +305,27 @@
                             windowIntensity += scores[i+j].score;
                         }
                         
-                        // APLICAR PSICOLOGÍA COGNITIVA: Regla del Pico-Final
-                        // El cerebro humano experimenta la mayor atracción y satisfacción si el clímax 
-                        // ocurre en la zona dorada (entre el 60% y el 85% de la experiencia).
+                        // Factor psicológico: El interés decae en los primeros minutos y repunta hacia el final
                         const timePercentage = scores[i].time / duration;
                         let psychologicalMultiplier = 1.0;
                         
-                        if (timePercentage >= 0.60 && timePercentage <= 0.85) {
-                            psychologicalMultiplier = 1.8; // Máxima estimulación neuronal
-                        } else if (timePercentage >= 0.40 && timePercentage < 0.60) {
-                            psychologicalMultiplier = 1.3; // Calentamiento de la acción
+                        if (timePercentage >= 0.65 && timePercentage <= 0.90) {
+                            psychologicalMultiplier = 2.0; // Pico de expectativa
+                        } else if (timePercentage >= 0.30 && timePercentage < 0.65) {
+                            psychologicalMultiplier = 1.2; // Aumento de la tensión
                         } else {
-                            psychologicalMultiplier = 0.8; // Se descartan intros largas o finales aburridos
+                            psychologicalMultiplier = 0.5; // Introducciones o desenlaces
                         }
                         
                         const finalScore = windowIntensity * psychologicalMultiplier;
 
-                        // Determinar los 20 segundos ganadores
-                        if (finalScore > maxDopamineScore) {
-                            maxDopamineScore = finalScore;
+                        if (finalScore > maxArousalScore) {
+                            maxArousalScore = finalScore;
                             bestStartTime = scores[i].time;
                         }
                     }
                     
-                    resolve(bestStartTime || 0); // Retorna el inicio exacto
+                    resolve(bestStartTime || 0);
                 }
             });
         });
