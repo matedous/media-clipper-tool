@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Media Highlight Clipper (Strict 20s Trim)</title>
+    <title>AI Media Highlight Clipper (Real 20s Export)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -70,33 +70,35 @@
         .progress-bar {
             width: 0%;
             height: 12px;
-            background: linear-gradient(90deg, #ff4757, #ff6b81);
+            background: linear-gradient(90deg, #2ed573, #26af5f);
             border-radius: 20px;
-            transition: width 0.1s ease-in-out;
+            transition: width 0.5s linear;
         }
         video {
             width: 100%;
             border-radius: 8px;
             margin-top: 20px;
             display: none;
+            background: #000;
         }
         #downloadBtn {
             display: none;
-            background-color: #2ed573;
+            background-color: #ff4757;
             border: none;
             margin-top: 20px;
         }
-        #downloadBtn:hover { background-color: #26af5f; }
+        #downloadBtn:hover { background-color: #ff6b81; }
+        #downloadBtn:disabled { background-color: #555; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>AI Highlight Clipper</h1>
-    <p>Aislamiento estricto de 20 segundos. Remuestreo binario sin servidores.</p>
+    <p>Renderizado interno: Extrae un archivo jugable de exactamente 20 segundos.</p>
     
     <div class="upload-btn-wrapper">
-        <button class="btn">Importar Archivo de Video</button>
+        <button class="btn" id="uploadBtnLabel">Importar Archivo de Video</button>
         <input type="file" id="videoInput" accept="video/*" />
     </div>
 
@@ -106,9 +108,9 @@
         <div class="progress-bar" id="progressBar"></div>
     </div>
     
-    <video id="videoPlayer" controls></video>
+    <video id="videoPlayer" controls playsinline></video>
     
-    <button id="downloadBtn" class="btn">Descargar Clip de 20s Extraído</button>
+    <button id="downloadBtn" class="btn">✂️ Recortar y Descargar (20s)</button>
 </div>
 
 <script>
@@ -121,89 +123,111 @@
     
     let originalFile = null;
     let clipStartTime = 0;
-    let finalClipBlob = null;
 
     videoInput.addEventListener('change', (e) => {
         originalFile = e.target.files[0];
         if (!originalFile) return;
 
+        // Resetear la interfaz
         videoPlayer.style.display = "none";
         downloadBtn.style.display = "none";
-        progressBar.style.width = "0%"
-        progressContainer.style.display = "block";
-        status.innerText = "Iniciando análisis de espectro analítico (0%)...";
+        progressContainer.style.display = "none";
+        progressBar.style.width = "0%";
         
-        const fileReader = new FileReader();
+        status.innerText = "Analizando video para encontrar el clímax...";
         
-        fileReader.onload = async function() {
-            const arrayBuffer = this.result;
+        const videoUrl = URL.createObjectURL(originalFile);
+        videoPlayer.src = videoUrl;
+        
+        videoPlayer.onloadedmetadata = () => {
+            const duration = videoPlayer.duration;
+            // Calcular el mejor momento
+            clipStartTime = calculateOptimalRetentionSegment(duration); 
             
-            // Creamos un elemento temporal para obtener la duración exacta de forma segura
-            const tempVideo = document.createElement('video');
-            tempVideo.src = URL.createObjectURL(originalFile);
+            status.innerText = `¡Momento detectado! (Inicio: ${formatTime(clipStartTime)}). Revisa la vista previa y haz clic en Recortar.`;
             
-            tempVideo.onloadedmetadata = async () => {
-                const duration = tempVideo.duration;
-                clipStartTime = calculateOptimalRetentionSegment(duration);
-                
-                let progress = 0;
-                const interval = setInterval(async () => {
-                    progress += Math.floor(Math.random() * 20) + 10;
-                    
-                    if (progress >= 100) {
-                        progress = 100;
-                        clearInterval(interval);
-                        
-                        status.innerText = "Aislado binario completado. Reconstruyendo contenedor de 20 segundos...";
-                        
-                        // CORTE ESTRICTO A NIVEL DE BYTES Y BUFFER
-                        // Extraemos la porción estimada de datos basándonos en el bitrate promedio del archivo
-                        const totalBytes = arrayBuffer.byteLength;
-                        const bytePerSecond = totalBytes / duration;
-                        const startByte = Math.floor(clipStartTime * bytePerSecond);
-                        const endByte = Math.floor((clipStartTime + 20) * bytePerSecond);
-                        
-                        // Rebanado físico del archivo (Aquí destruimos el resto del video)
-                        const slicedBuffer = arrayBuffer.slice(startByte, endByte);
-                        
-                        // Generamos un nuevo archivo que solo contiene los 20 segundos del clímax
-                        finalClipBlob = new Blob([slicedBuffer], { type: originalFile.type || 'video/mp4' });
-                        const finalClipUrl = URL.createObjectURL(finalClipBlob);
-                        
-                        status.innerText = `¡Clímax indexado! Segmento de 20s aislado (Origen: ${formatTime(clipStartTime)}).`;
-                        progressContainer.style.display = "none";
-                        
-                        // El reproductor ahora SOLO CONOCE los 20 segundos aislados
-                        videoPlayer.src = finalClipUrl;
-                        videoPlayer.style.display = "block";
-                        downloadBtn.style.display = "inline-block";
-                    } else {
-                        status.innerText = `Buscando patrones de máximo impacto emocional y de audio (${progress}%)...`;
-                        progressBar.style.width = `${progress}%`;
-                    }
-                }, 150);
-            };
+            // Mostrar vista previa
+            videoPlayer.currentTime = clipStartTime;
+            videoPlayer.style.display = "block";
+            downloadBtn.style.display = "inline-block";
         };
-        
-        fileReader.readAsArrayBuffer(originalFile);
     });
 
-    // DESCARGA EXCLUSIVA DE LOS 20 SEGUNDOS GENERADOS
+    // SISTEMA DE RECORTE REAL (MEDIARECORDER)
     downloadBtn.addEventListener('click', () => {
-        if (!finalClipBlob) return;
+        downloadBtn.disabled = true;
+        videoInput.disabled = true;
+        progressContainer.style.display = "block";
         
-        status.innerText = "Descargando fragmento de 20 segundos...";
+        // Volumen casi en 0 para que no moleste al usuario, pero permite que el audio se grabe internamente
+        videoPlayer.volume = 0.05; 
+        videoPlayer.currentTime = clipStartTime;
         
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(finalClipBlob);
-        a.download = `climax_20s_${originalFile.name.split('.')[0]}.mp4`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        // Preparar captura de flujo (Video + Audio)
+        let stream;
+        if (videoPlayer.captureStream) {
+            stream = videoPlayer.captureStream();
+        } else if (videoPlayer.mozCaptureStream) {
+            stream = videoPlayer.mozCaptureStream();
+        } else {
+            alert("Tu navegador no soporta el recorte interno. Usa Chrome, Edge o Firefox.");
+            return;
+        }
+
+        // Grabar el flujo en formato WebM (Alta compatibilidad y calidad en web)
+        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        const chunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            // Unir los fragmentos grabados en un archivo real
+            const blob = new Blob(chunks, { type: 'video/webm' });
+            const finalUrl = URL.createObjectURL(blob);
+            
+            // Forzar descarga del nuevo archivo
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = finalUrl;
+            a.download = `Climax_20s_${originalFile.name.split('.')[0]}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // Restaurar interfaz
+            status.innerText = "¡Recorte completado con éxito! Archivo de 20s generado.";
+            downloadBtn.disabled = false;
+            videoInput.disabled = false;
+            progressContainer.style.display = "none";
+            videoPlayer.pause();
+            videoPlayer.volume = 1.0;
+        };
+
+        // Iniciar el proceso
+        mediaRecorder.start();
+        videoPlayer.play();
+
+        // Cronómetro exacto de 20 segundos
+        let timeElapsed = 0;
+        const totalDuration = 20; 
         
-        status.innerText = "¡Clip descargado con éxito!";
+        const timerInterval = setInterval(() => {
+            timeElapsed += 1;
+            const percentage = (timeElapsed / totalDuration) * 100;
+            progressBar.style.width = `${percentage}%`;
+            status.innerText = `Renderizando video: ${timeElapsed}s / 20s... (No cambies de pestaña)`;
+
+            // Detener exactamente a los 20 segundos
+            if (timeElapsed >= totalDuration) {
+                clearInterval(timerInterval);
+                mediaRecorder.stop(); // Esto dispara el evento onstop de arriba
+            }
+        }, 1000); // 1 segundo exacto
     });
 
+    // IA Simulada: Lógica matemática para hallar el mejor segmento
     function calculateOptimalRetentionSegment(duration) {
         if (duration <= 20) return 0;
         const minStart = Math.min(20, duration * 0.15);
@@ -212,6 +236,7 @@
         return parseFloat(bestStart.toFixed(2));
     }
 
+    // Formatear segundos a texto (Ej: 01:45)
     function formatTime(seconds) {
         const min = Math.floor(seconds / 60);
         const sec = Math.floor(seconds % 60);
