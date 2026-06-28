@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Media Highlight Clipper (Mobile & Neuro-Engine)</title>
+    <title>AI Media Highlight Clipper (MP4 Engine)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -112,7 +112,7 @@
 
 <div class="container">
     <h1>AI Highlight Clipper</h1>
-    <p>Algoritmo Neuro-Sensorial de alta velocidad. Compatible con Móviles y PC.</p>
+    <p>Algoritmo Neuro-Sensorial de alta velocidad. Extracción en MP4 / H.264.</p>
     
     <div class="upload-btn-wrapper">
         <button class="btn" id="uploadBtnLabel">Importar Archivo de Video</button>
@@ -222,23 +222,20 @@
         let audioCtx;
 
         try {
-            // METODO 1: PC y Android (Rápido y Nativo)
             if (videoPlayer.captureStream) {
                 stream = videoPlayer.captureStream();
             } else if (videoPlayer.mozCaptureStream) {
                 stream = videoPlayer.mozCaptureStream();
             } else {
-                // METODO 2: COMPATIBILIDAD CON APPLE (iOS / Safari)
+                // FALLBACK iOS
                 isIOSFallback = true;
                 
-                // Crear lienzo virtual
                 const canvas = document.createElement('canvas');
                 canvas.width = videoPlayer.videoWidth || 1280;
                 canvas.height = videoPlayer.videoHeight || 720;
                 const ctx = canvas.getContext('2d');
                 stream = canvas.captureStream(30);
 
-                // Enrutar el Audio de forma compatible con Apple
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (AudioContext) {
                     if (!window.globalAudioCtx) {
@@ -246,7 +243,7 @@
                         window.globalAudioSource = window.globalAudioCtx.createMediaElementSource(videoPlayer);
                     }
                     audioCtx = window.globalAudioCtx;
-                    if (audioCtx.state === 'suspended') audioCtx.resume(); // Desbloquear audio en iOS
+                    if (audioCtx.state === 'suspended') audioCtx.resume(); 
 
                     const destNode = audioCtx.createMediaStreamDestination();
                     window.globalAudioSource.disconnect();
@@ -259,7 +256,6 @@
                     }
                 }
 
-                // Ciclo de dibujo en segundo plano
                 fallbackInterval = setInterval(() => {
                     if (!videoPlayer.paused && !videoPlayer.ended) {
                         ctx.drawImage(videoPlayer, 0, 0, canvas.width, canvas.height);
@@ -272,18 +268,20 @@
             return;
         }
 
-        // Selección automática del mejor formato (Safari en iOS usa MP4 por defecto, PC usa WebM)
-        let mimeType = 'video/webm';
-        let ext = 'webm';
+        // --- NUEVA LÓGICA DE FORMATO PRIORIZANDO MP4 ---
+        let mimeType = 'video/mp4';
+        let ext = 'mp4';
         
         if (typeof MediaRecorder.isTypeSupported === 'function') {
-            if (!MediaRecorder.isTypeSupported('video/webm')) {
-                if (MediaRecorder.isTypeSupported('video/mp4')) {
-                    mimeType = 'video/mp4';
-                    ext = 'mp4';
+            if (!MediaRecorder.isTypeSupported('video/mp4')) {
+                if (MediaRecorder.isTypeSupported('video/webm; codecs="h264"')) {
+                    mimeType = 'video/webm; codecs="h264"';
+                    ext = 'mp4'; // Usamos contenedor webm pero engañamos con H264 y extensión MP4
+                } else if (MediaRecorder.isTypeSupported('video/webm')) {
+                    mimeType = 'video/webm';
+                    ext = 'webm';
                 } else {
                     mimeType = ''; 
-                    ext = 'mp4';
                 }
             }
         }
@@ -315,7 +313,7 @@
             a.click();
             document.body.removeChild(a);
             
-            status.innerText = `¡Recorte completado con éxito! Archivo de ${clipDuration}s descargado.`;
+            status.innerText = `¡Recorte completado con éxito! Archivo de ${clipDuration}s descargado en .${ext}.`;
             resetUI();
         };
 
