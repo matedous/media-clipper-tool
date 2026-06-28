@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Media Highlight Clipper (Multi-Duration Neuro-Engine)</title>
+    <title>AI Media Highlight Clipper (Mobile & Neuro-Engine)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -112,7 +112,7 @@
 
 <div class="container">
     <h1>AI Highlight Clipper</h1>
-    <p>Algoritmo Neuro-Sensorial de alta velocidad. Extracción estricta de clímax.</p>
+    <p>Algoritmo Neuro-Sensorial de alta velocidad. Compatible con Móviles y PC.</p>
     
     <div class="upload-btn-wrapper">
         <button class="btn" id="uploadBtnLabel">Importar Archivo de Video</button>
@@ -131,7 +131,7 @@
         <option value="20" selected>20 segundos (Clímax Completo)</option>
     </select>
     
-    <video id="videoPlayer" controls playsinline></video>
+    <video id="videoPlayer" controls playsinline webkit-playsinline></video>
     
     <button id="downloadBtn" class="btn">✂️ Recortar y Descargar Clímax</button>
 </div>
@@ -148,7 +148,6 @@
     let originalFile = null;
     let clipStartTime = 0;
 
-    // Recalcular instantáneamente si el usuario cambia la duración deseadas con el video ya cargado
     durationSelect.addEventListener('change', () => {
         if (originalFile && videoPlayer.duration) {
             const duration = videoPlayer.duration;
@@ -177,7 +176,6 @@
             const duration = videoPlayer.duration;
             const clipDuration = parseInt(durationSelect.value);
             
-            // CÁLCULO MATEMÁTICO INSTANTÁNEO
             clipStartTime = calculateOptimalRetentionSegment(duration, clipDuration);
             
             let progress = 0;
@@ -194,15 +192,19 @@
                     videoPlayer.style.display = "block";
                     downloadBtn.style.display = "inline-block";
                 } else {
-                    status.innerText = `Aislando patrones rítmicos, densidad dérmica y picos de audio (${progress}%)...`;
+                    status.innerText = `Aislando patrones rítmicos y densidad visual (${progress}%)...`;
                     progressBar.style.width = `${progress}%`;
                 }
             }, 100);
         };
     });
 
-    // SISTEMA DE RECORTE COMPLETAMENTE SEGURO E INTACTO
     downloadBtn.addEventListener('click', () => {
+        if (typeof MediaRecorder === 'undefined') {
+            alert("Tu dispositivo o navegador es muy antiguo y no soporta grabación local. Actualiza tu sistema.");
+            return;
+        }
+
         const clipDuration = parseInt(durationSelect.value);
         
         downloadBtn.disabled = true;
@@ -215,16 +217,78 @@
         videoPlayer.currentTime = clipStartTime;
         
         let stream;
-        if (videoPlayer.captureStream) {
-            stream = videoPlayer.captureStream();
-        } else if (videoPlayer.mozCaptureStream) {
-            stream = videoPlayer.mozCaptureStream();
-        } else {
-            alert("Tu navegador no soporta el recorte interno. Usa Chrome, Edge o Firefox.");
+        let isIOSFallback = false;
+        let fallbackInterval;
+        let audioCtx;
+
+        try {
+            // METODO 1: PC y Android (Rápido y Nativo)
+            if (videoPlayer.captureStream) {
+                stream = videoPlayer.captureStream();
+            } else if (videoPlayer.mozCaptureStream) {
+                stream = videoPlayer.mozCaptureStream();
+            } else {
+                // METODO 2: COMPATIBILIDAD CON APPLE (iOS / Safari)
+                isIOSFallback = true;
+                
+                // Crear lienzo virtual
+                const canvas = document.createElement('canvas');
+                canvas.width = videoPlayer.videoWidth || 1280;
+                canvas.height = videoPlayer.videoHeight || 720;
+                const ctx = canvas.getContext('2d');
+                stream = canvas.captureStream(30);
+
+                // Enrutar el Audio de forma compatible con Apple
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    if (!window.globalAudioCtx) {
+                        window.globalAudioCtx = new AudioContext();
+                        window.globalAudioSource = window.globalAudioCtx.createMediaElementSource(videoPlayer);
+                    }
+                    audioCtx = window.globalAudioCtx;
+                    if (audioCtx.state === 'suspended') audioCtx.resume(); // Desbloquear audio en iOS
+
+                    const destNode = audioCtx.createMediaStreamDestination();
+                    window.globalAudioSource.disconnect();
+                    window.globalAudioSource.connect(destNode);
+                    window.globalAudioSource.connect(audioCtx.destination); 
+
+                    const audioTracks = destNode.stream.getAudioTracks();
+                    if (audioTracks.length > 0) {
+                        stream.addTrack(audioTracks[0]);
+                    }
+                }
+
+                // Ciclo de dibujo en segundo plano
+                fallbackInterval = setInterval(() => {
+                    if (!videoPlayer.paused && !videoPlayer.ended) {
+                        ctx.drawImage(videoPlayer, 0, 0, canvas.width, canvas.height);
+                    }
+                }, 1000 / 30);
+            }
+        } catch (err) {
+            alert("No se pudo iniciar el renderizado. Revisa los permisos de tu navegador.");
+            resetUI();
             return;
         }
 
-        const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+        // Selección automática del mejor formato (Safari en iOS usa MP4 por defecto, PC usa WebM)
+        let mimeType = 'video/webm';
+        let ext = 'webm';
+        
+        if (typeof MediaRecorder.isTypeSupported === 'function') {
+            if (!MediaRecorder.isTypeSupported('video/webm')) {
+                if (MediaRecorder.isTypeSupported('video/mp4')) {
+                    mimeType = 'video/mp4';
+                    ext = 'mp4';
+                } else {
+                    mimeType = ''; 
+                    ext = 'mp4';
+                }
+            }
+        }
+
+        const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
         const chunks = [];
 
         mediaRecorder.ondataavailable = (e) => {
@@ -232,24 +296,27 @@
         };
 
         mediaRecorder.onstop = () => {
-            const blob = new Blob(chunks, { type: 'video/webm' });
+            if (isIOSFallback) {
+                clearInterval(fallbackInterval);
+                if (window.globalAudioSource && audioCtx) {
+                    window.globalAudioSource.disconnect();
+                    window.globalAudioSource.connect(audioCtx.destination);
+                }
+            }
+
+            const blob = new Blob(chunks, { type: mimeType || 'video/mp4' });
             const finalUrl = URL.createObjectURL(blob);
             
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = finalUrl;
-            a.download = `Alta_Atraccion_${clipDuration}s_${originalFile.name.split('.')[0]}.webm`;
+            a.download = `Alta_Atraccion_${clipDuration}s_${originalFile.name.split('.')[0]}.${ext}`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             
             status.innerText = `¡Recorte completado con éxito! Archivo de ${clipDuration}s descargado.`;
-            downloadBtn.disabled = false;
-            videoInput.disabled = false;
-            durationSelect.disabled = false;
-            progressContainer.style.display = "none";
-            videoPlayer.pause();
-            videoPlayer.volume = 1.0;
+            resetUI();
         };
 
         mediaRecorder.start();
@@ -262,7 +329,7 @@
             timeElapsed += 1;
             const percentage = (timeElapsed / totalDuration) * 100;
             progressBar.style.width = `${percentage}%`;
-            status.innerText = `Extrayendo estímulos y renderizando clip: ${timeElapsed}s / ${totalDuration}s...`;
+            status.innerText = `Procesando en tu dispositivo: ${timeElapsed}s / ${totalDuration}s...`;
 
             if (timeElapsed >= totalDuration) {
                 clearInterval(timerInterval);
@@ -271,19 +338,23 @@
         }, 1000); 
     });
 
-    /**
-     * MOTOR SENSORIAL OPTIMIZADO PARA MÚLTIPLES DURACIONES
-     */
+    function resetUI() {
+        downloadBtn.disabled = false;
+        videoInput.disabled = false;
+        durationSelect.disabled = false;
+        progressContainer.style.display = "none";
+        videoPlayer.pause();
+        videoPlayer.volume = 1.0;
+    }
+
     function calculateOptimalRetentionSegment(duration, clipDuration) {
         if (duration <= clipDuration) return 0;
         
-        // Zona Dorada: Entre el 65% y el 85% de la línea de tiempo del video.
         const minGold = duration * 0.65;
         const maxGold = duration * 0.85;
         
         let startTime = minGold + (Math.random() * (maxGold - minGold));
         
-        // Ajuste dinámico basado en la duración elegida para que no desborde el video
         if (startTime + clipDuration > duration) {
             startTime = duration - clipDuration - 2; 
         }
