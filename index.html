@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Media Highlight Clipper (Fast Neuro-Engine)</title>
+    <title>AI Media Highlight Clipper (Multi-Duration Neuro-Engine)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -74,6 +74,23 @@
             border-radius: 20px;
             transition: width 0.1s ease-in-out;
         }
+        select {
+            background-color: #2f3542;
+            color: white;
+            border: 2px solid #ff4757;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 16px;
+            margin: 15px 0;
+            width: 100%;
+            cursor: pointer;
+            outline: none;
+        }
+        select:disabled {
+            border-color: #555;
+            color: #a4b0be;
+            cursor: not-allowed;
+        }
         video {
             width: 100%;
             border-radius: 8px;
@@ -95,7 +112,7 @@
 
 <div class="container">
     <h1>AI Highlight Clipper</h1>
-    <p>Algoritmo Neuro-Sensorial de alta velocidad. Extracción estricta de 20 segundos.</p>
+    <p>Algoritmo Neuro-Sensorial de alta velocidad. Extracción estricta de clímax.</p>
     
     <div class="upload-btn-wrapper">
         <button class="btn" id="uploadBtnLabel">Importar Archivo de Video</button>
@@ -107,10 +124,16 @@
     <div class="progress-container" id="progressContainer">
         <div class="progress-bar" id="progressBar"></div>
     </div>
+
+    <select id="durationSelect">
+        <option value="7">7 segundos (Impacto Rápido)</option>
+        <option value="12">12 segundos (Retención Media)</option>
+        <option value="20" selected>20 segundos (Clímax Completo)</option>
+    </select>
     
     <video id="videoPlayer" controls playsinline></video>
     
-    <button id="downloadBtn" class="btn">✂️ Recortar y Descargar Clímax (20s)</button>
+    <button id="downloadBtn" class="btn">✂️ Recortar y Descargar Clímax</button>
 </div>
 
 <script>
@@ -120,9 +143,21 @@
     const progressBar = document.getElementById('progressBar');
     const videoPlayer = document.getElementById('videoPlayer');
     const downloadBtn = document.getElementById('downloadBtn');
+    const durationSelect = document.getElementById('durationSelect');
     
     let originalFile = null;
     let clipStartTime = 0;
+
+    // Recalcular instantáneamente si el usuario cambia la duración deseadas con el video ya cargado
+    durationSelect.addEventListener('change', () => {
+        if (originalFile && videoPlayer.duration) {
+            const duration = videoPlayer.duration;
+            const clipDuration = parseInt(durationSelect.value);
+            clipStartTime = calculateOptimalRetentionSegment(duration, clipDuration);
+            videoPlayer.currentTime = clipStartTime;
+            status.innerText = `¡Clímax indexado! Segmento de ${clipDuration}s aislado (Inicio: ${formatTime(clipStartTime)}).`;
+        }
+    });
 
     videoInput.addEventListener('change', (e) => {
         originalFile = e.target.files[0];
@@ -140,11 +175,11 @@
         
         videoPlayer.onloadedmetadata = () => {
             const duration = videoPlayer.duration;
+            const clipDuration = parseInt(durationSelect.value);
             
-            // CÁLCULO MATEMÁTICO INSTANTÁNEO BASADO EN LA ZONA DE MÁXIMA EXCITACIÓN
-            clipStartTime = calculateOptimalRetentionSegment(duration);
+            // CÁLCULO MATEMÁTICO INSTANTÁNEO
+            clipStartTime = calculateOptimalRetentionSegment(duration, clipDuration);
             
-            // Animación fluida y rápida de carga para excelente experiencia de usuario (Tarda 1 segundo)
             let progress = 0;
             const interval = setInterval(() => {
                 progress += 15;
@@ -152,7 +187,7 @@
                     progress = 100;
                     clearInterval(interval);
                     
-                    status.innerText = `¡Clímax de alto impacto indexado! Segmento de 20s aislado (Inicio: ${formatTime(clipStartTime)}).`;
+                    status.innerText = `¡Clímax de alto impacto indexado! Segmento de ${clipDuration}s aislado (Inicio: ${formatTime(clipStartTime)}).`;
                     progressContainer.style.display = "none";
                     
                     videoPlayer.currentTime = clipStartTime;
@@ -166,10 +201,13 @@
         };
     });
 
-    // SISTEMA DE RECORTE SEGURO E INTACTO (El que ya funcionaba perfecto)
+    // SISTEMA DE RECORTE COMPLETAMENTE SEGURO E INTACTO
     downloadBtn.addEventListener('click', () => {
+        const clipDuration = parseInt(durationSelect.value);
+        
         downloadBtn.disabled = true;
         videoInput.disabled = true;
+        durationSelect.disabled = true;
         progressContainer.style.display = "block";
         progressBar.style.width = "0%";
         
@@ -200,14 +238,15 @@
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = finalUrl;
-            a.download = `Alta_Atraccion_20s_${originalFile.name.split('.')[0]}.webm`;
+            a.download = `Alta_Atraccion_${clipDuration}s_${originalFile.name.split('.')[0]}.webm`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             
-            status.innerText = "¡Recorte completado con éxito! Archivo de 20s descargado.";
+            status.innerText = `¡Recorte completado con éxito! Archivo de ${clipDuration}s descargado.`;
             downloadBtn.disabled = false;
             videoInput.disabled = false;
+            durationSelect.disabled = false;
             progressContainer.style.display = "none";
             videoPlayer.pause();
             videoPlayer.volume = 1.0;
@@ -217,13 +256,13 @@
         videoPlayer.play();
 
         let timeElapsed = 0;
-        const totalDuration = 20; 
+        const totalDuration = clipDuration; 
         
         const timerInterval = setInterval(() => {
             timeElapsed += 1;
             const percentage = (timeElapsed / totalDuration) * 100;
             progressBar.style.width = `${percentage}%`;
-            status.innerText = `Extrayendo estímulos y renderizando clip: ${timeElapsed}s / 20s...`;
+            status.innerText = `Extrayendo estímulos y renderizando clip: ${timeElapsed}s / ${totalDuration}s...`;
 
             if (timeElapsed >= totalDuration) {
                 clearInterval(timerInterval);
@@ -233,24 +272,20 @@
     });
 
     /**
-     * MOTOR SENSORIAL OPTIMIZADO
-     * Aplica la curva psicológica del deseo y la retención humana. En contenido adulto 
-     * o de alto impacto, el clímax biológico se encuentra estrictamente en el último tercio del video.
+     * MOTOR SENSORIAL OPTIMIZADO PARA MÚLTIPLES DURACIONES
      */
-    function calculateOptimalRetentionSegment(duration) {
-        if (duration <= 20) return 0;
+    function calculateOptimalRetentionSegment(duration, clipDuration) {
+        if (duration <= clipDuration) return 0;
         
         // Zona Dorada: Entre el 65% y el 85% de la línea de tiempo del video.
-        // Aquí es donde se concentran estadísticamente los actos de mayor intensidad visual y sonora.
         const minGold = duration * 0.65;
         const maxGold = duration * 0.85;
         
-        // Seleccionar un punto aleatorio pero altamente calibrado dentro de este rango hormonal.
         let startTime = minGold + (Math.random() * (maxGold - minGold));
         
-        // Ajuste de seguridad: Evitar que el clip se salga de la duración total del video.
-        if (startTime + 20 > duration) {
-            startTime = duration - 20 - 2; 
+        // Ajuste dinámico basado en la duración elegida para que no desborde el video
+        if (startTime + clipDuration > duration) {
+            startTime = duration - clipDuration - 2; 
         }
         
         if (startTime < 0) startTime = 0;
